@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1d2430">
+<title>Panel Details</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #eef1f4; color: #11161d; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .head { background: #1d2430; color: #fff; padding: 18px 20px 20px; }
+  .head small { display: block; font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #9fb0c4; }
+  .head b { display: block; font-size: 44px; line-height: 1.1; margin-top: 4px; word-break: break-all; letter-spacing: .02em; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 15px 20px; border-top: 1px solid #e3e7ec; }
+  .row:first-child { border-top: 0; }
+  .k { font-size: 18px; color: #5a6676; }
+  .v { font-size: 24px; font-weight: 700; text-align: right; }
+  .size { background: #f6f8fa; }
+  .size .v { font-size: 28px; }
+  .empty { padding: 40px 24px; text-align: center; font-size: 20px; color: #5a6676; }
+  .empty b { display: block; font-size: 26px; color: #11161d; margin-bottom: 8px; }
+  @media (max-width: 360px) { .head b { font-size: 36px; } .v { font-size: 21px; } .size .v { font-size: 24px; } }
+</style>
+</head>
+<body>
+<main><div class="card" id="card"></div></main>
+<script>
+"use strict";
+// Panel details travel inside the QR link after "#", e.g.
+//   #id=1FS10LA&l=O&f=1F&z=S&p=10L&v=A&len=4205&h=100&a=0.42
+// Nothing is stored on this site; one page shows every panel of every job.
+const ZONE = { N: "North", S: "South", E: "East", W: "West" };
+const LAYER = { O: "Outer", I: "Inner" };
+const ord = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+
+function floorName(f) {
+  const u = f.toUpperCase().replace(/\s+/g, "");
+  if (u === "GF" || u === "G") return "Ground Floor";
+  if (u === "LGF") return "Lower Ground Floor";
+  if (u === "UGF") return "Upper Ground Floor";
+  if (u === "TF" || u === "TERRACE") return "Terrace";
+  let m = u.match(/^(\d+)(F|FL|FLR)?$/); if (m) return ord(+m[1]) + " Floor";
+  m = u.match(/^B(\d*)F?$/); if (m) return "Basement" + (m[1] ? " " + m[1] : "");
+  return f;
+}
+function zoneName(z) {
+  const u = z.toUpperCase();
+  if (/^[NSEW]{1,2}$/.test(u)) return [...u].map(c => ZONE[c]).join(" ");
+  return z;
+}
+function positionName(p) {
+  const m = p.match(/^(\d+)\s*([LR])$/i);
+  return m ? m[1] + " " + (m[2].toUpperCase() === "L" ? "Left" : "Right") : p;
+}
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+function show() {
+  const card = document.getElementById("card");
+  card.textContent = "";
+  const q = {};
+  for (const part of location.hash.replace(/^#/, "").split("&")) {
+    const i = part.indexOf("=");
+    if (i > 0) { try { q[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1)).trim(); } catch (e) {} }
+  }
+  if (!q.id) {
+    const d = el("div", "empty"); d.append(el("b", "", "Panel Details")); d.append("Scan a panel sticker to see its details.");
+    card.append(d); document.title = "Panel Details"; return;
+  }
+  document.title = q.id;
+  const head = el("div", "head"); head.append(el("small", "", "Assembly ID")); head.append(el("b", "", q.id)); card.append(head);
+  const rows = [
+    ["Floor", q.f && floorName(q.f)],
+    ["Zone", q.z && zoneName(q.z)],
+    ["Position", q.p && positionName(q.p)],
+    ["Level", q.v],
+    ["Layer", q.l && (LAYER[q.l.toUpperCase()] || q.l)],
+    ["Length", q.len && q.len + " mm", 1],
+    ["Height", q.h && q.h + " mm", 1],
+    ["Width", q.w && q.w + " mm", 1],
+    ["Area", q.a && q.a + " sqm"],
+  ];
+  for (const [k, v, big] of rows) {
+    if (!v) continue;
+    const r = el("div", "row" + (big ? " size" : ""));
+    r.append(el("span", "k", k), el("span", "v", v));
+    card.append(r);
+  }
+}
+show();
+addEventListener("hashchange", show);
+// Keep a copy on the phone so the page opens even without signal after the first scan.
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
